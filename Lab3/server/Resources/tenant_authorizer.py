@@ -19,14 +19,14 @@ userpool_id = os.environ['TENANT_USER_POOL']
 appclient_id = os.environ['TENANT_APP_CLIENT']
 
 def lambda_handler(event, context):
-    
+
     #get JWT token after Bearer from authorization
     token = event['authorizationToken'].split(" ")
     if (token[0] != 'Bearer'):
         raise Exception('Authorization header should have a format Bearer <JWT> Token')
     jwt_bearer_token = token[1]
     logger.info("Method ARN: " + event['methodArn'])
-    
+
     #get keys for tenant user pool to validate
     keys_url = 'https://cognito-idp.{}.amazonaws.com/{}/.well-known/jwks.json'.format(region, userpool_id)
     with urllib.request.urlopen(keys_url) as f:
@@ -35,7 +35,7 @@ def lambda_handler(event, context):
 
     #authenticate against cognito user pool using the key
     response = validateJWT(jwt_bearer_token, appclient_id, keys)
-    
+
     #get authenticated claims
     if (response == False):
         logger.error('Unauthorized')
@@ -45,12 +45,12 @@ def lambda_handler(event, context):
         principal_id = response["sub"]
         user_name = response["cognito:username"]
         tenant_id = response["custom:tenantId"]
-        
-    
+
+
     tmp = event['methodArn'].split(':')
     api_gateway_arn_tmp = tmp[5].split('/')
-    aws_account_id = tmp[4]    
-    
+    aws_account_id = tmp[4]
+
     policy = AuthPolicy(principal_id, aws_account_id)
     policy.restApiId = api_gateway_arn_tmp[0]
     policy.region = tmp[3]
@@ -58,12 +58,19 @@ def lambda_handler(event, context):
 
 
     #roles are not fine-grained enough to allow selectively
-    policy.allowAllMethods()        
-    
+    policy.allowAllMethods()
+
     authResponse = policy.build()
- 
+
     # TODO: Add tenant context to authResponse
-    
+
+    context = {
+        'userName': user_name,
+        'tenantId': tenant_id
+    }
+
+    authResponse['context'] = context
+
     return authResponse
 
 def validateJWT(token, app_client_id, keys):
