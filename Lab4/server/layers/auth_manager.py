@@ -8,9 +8,9 @@ import utils
 class UserRoles:
     SYSTEM_ADMIN    = "SystemAdmin"
     CUSTOMER_SUPPORT  = "CustomerSupport"
-    TENANT_ADMIN    = "TenantAdmin"    
+    TENANT_ADMIN    = "TenantAdmin"
     TENANT_USER     = "TenantUser"
-    
+
 def isTenantAdmin(user_role):
     if (user_role == UserRoles.TENANT_ADMIN):
         return True
@@ -39,25 +39,25 @@ def getPolicyForUser(user_role, service_identifier, tenant_id, region, aws_accou
     """ This method is being used by Authorizer to get appropriate policy by user role
     Args:
         user_role (string): UserRoles enum
-        tenant_id (string): 
-        region (string): 
-        aws_account_id (string):  
+        tenant_id (string):
+        region (string):
+        aws_account_id (string):
     Returns:
         string: policy that tenant needs to assume
     """
     iam_policy = ""
-    
+
     if (isSystemAdmin(user_role)):
         iam_policy = __getPolicyForSystemAdmin(region, aws_account_id)
     elif (isTenantAdmin(user_role)):
         iam_policy = __getPolicyForTenantAdmin(tenant_id, service_identifier, region, aws_account_id)
     elif (isTenantUser(user_role)):
         iam_policy = __getPolicyForTenantUser(tenant_id, region, aws_account_id)
-    
+
     return iam_policy
 
 def __getPolicyForSystemAdmin(region, aws_account_id):
-    policy = {	
+    policy = {
         "Version": "2012-10-17",
           "Statement": [
               {
@@ -67,7 +67,7 @@ def __getPolicyForSystemAdmin(region, aws_account_id):
                     "dynamodb:GetItem",
                     "dynamodb:PutItem",
                     "dynamodb:DeleteItem",
-                    "dynamodb:Query",          
+                    "dynamodb:Query",
                     "dynamodb:Scan"
                   ],
                   "Resource": [
@@ -76,12 +76,12 @@ def __getPolicyForSystemAdmin(region, aws_account_id):
               }
           ]
         }
-    
+
     return json.dumps(policy)
-    
+
 def __getPolicyForTenantAdmin(tenant_id, sevice_identifier, region, aws_account_id):
     if (sevice_identifier == utils.Service_Identifier.SHARED_SERVICES.value):
-        policy = {	
+        policy = {
             "Version": "2012-10-17",
             "Statement": [
                 {
@@ -90,7 +90,7 @@ def __getPolicyForTenantAdmin(tenant_id, sevice_identifier, region, aws_account_
                         "dynamodb:UpdateItem",
                         "dynamodb:GetItem",
                         "dynamodb:PutItem",
-                        "dynamodb:Query"                   
+                        "dynamodb:Query"
                     ],
                     "Resource": [
                         "arn:aws:dynamodb:{0}:{1}:table/ServerlessSaaS-TenantUserMapping".format(region, aws_account_id),
@@ -111,7 +111,7 @@ def __getPolicyForTenantAdmin(tenant_id, sevice_identifier, region, aws_account_
                         "dynamodb:GetItem",
                         "dynamodb:PutItem",
                         "dynamodb:DeleteItem",
-                        "dynamodb:Query"               
+                        "dynamodb:Query"
                     ],
                     "Resource": [
                         "arn:aws:dynamodb:{0}:{1}:table/ServerlessSaaS-TenantStackMapping".format(region, aws_account_id),
@@ -121,7 +121,7 @@ def __getPolicyForTenantAdmin(tenant_id, sevice_identifier, region, aws_account_
             ]
         }
     else:
-        policy = {	
+        policy = {
             "Version": "2012-10-17",
             "Statement": [
                 {
@@ -131,10 +131,10 @@ def __getPolicyForTenantAdmin(tenant_id, sevice_identifier, region, aws_account_
                         "dynamodb:GetItem",
                         "dynamodb:PutItem",
                         "dynamodb:DeleteItem",
-                        "dynamodb:Query"    
+                        "dynamodb:Query"
                     ],
                     "Resource": [
-                        "arn:aws:dynamodb:{0}:{1}:table/Product-*".format(region, aws_account_id),                      
+                        "arn:aws:dynamodb:{0}:{1}:table/Product-*".format(region, aws_account_id),
                     ],
                     "Condition": {
                         "ForAllValues:StringLike": {
@@ -151,10 +151,10 @@ def __getPolicyForTenantAdmin(tenant_id, sevice_identifier, region, aws_account_
                         "dynamodb:GetItem",
                         "dynamodb:PutItem",
                         "dynamodb:DeleteItem",
-                        "dynamodb:Query"       
+                        "dynamodb:Query"
                     ],
                     "Resource": [
-                        "arn:aws:dynamodb:{0}:{1}:table/Order-*".format(region, aws_account_id),                      
+                        "arn:aws:dynamodb:{0}:{1}:table/Order-*".format(region, aws_account_id),
                     ],
                     "Condition": {
                         "ForAllValues:StringLike": {
@@ -169,8 +169,8 @@ def __getPolicyForTenantAdmin(tenant_id, sevice_identifier, region, aws_account_
     return json.dumps(policy)
 
 def __getPolicyForTenantUser(tenant_id, region, aws_account_id):
-    
-    policy = {	
+
+    policy = {
         "Version": "2012-10-17",
           "Statement": [
               {
@@ -180,10 +180,10 @@ def __getPolicyForTenantUser(tenant_id, region, aws_account_id):
                       "dynamodb:GetItem",
                       "dynamodb:PutItem",
                       "dynamodb:DeleteItem",
-                      "dynamodb:Query"      
+                      "dynamodb:Query"
                   ],
                   "Resource": [
-                      "arn:aws:dynamodb:{0}:{1}:table/Product-*".format(region, aws_account_id),                      
+                      "arn:aws:dynamodb:{0}:{1}:table/Product-*".format(region, aws_account_id),
                   ],
                   "Condition": {
                       "ForAllValues:StringLike": {
@@ -200,10 +200,10 @@ def __getPolicyForTenantUser(tenant_id, region, aws_account_id):
                       "dynamodb:GetItem",
                       "dynamodb:PutItem",
                       "dynamodb:DeleteItem",
-                      "dynamodb:Query"               
+                      "dynamodb:Query"
                   ],
                   "Resource": [
-                      "arn:aws:dynamodb:{0}:{1}:table/Order-*".format(region, aws_account_id),                      
+                      "arn:aws:dynamodb:{0}:{1}:table/Order-*".format(region, aws_account_id),
                   ],
                   "Condition": {
                       "ForAllValues:StringLike": {
@@ -215,5 +215,5 @@ def __getPolicyForTenantUser(tenant_id, region, aws_account_id):
               }
           ]
         }
-    
+
     return json.dumps(policy)

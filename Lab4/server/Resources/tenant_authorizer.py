@@ -20,14 +20,14 @@ userpool_id = os.environ['TENANT_USER_POOL']
 appclient_id = os.environ['TENANT_APP_CLIENT']
 
 def lambda_handler(event, context):
-    
+
     #get JWT token after Bearer from authorization
     token = event['authorizationToken'].split(" ")
     if (token[0] != 'Bearer'):
         raise Exception('Authorization header should have a format Bearer <JWT> Token')
     jwt_bearer_token = token[1]
     logger.info("Method ARN: " + event['methodArn'])
-    
+
     #only to get tenant id to get user pool info
     unauthorized_claims = jwt.get_unverified_claims(jwt_bearer_token)
     logger.info(unauthorized_claims)
@@ -40,7 +40,7 @@ def lambda_handler(event, context):
 
     #authenticate against cognito user pool using the key
     response = validateJWT(jwt_bearer_token, appclient_id, keys)
-    
+
     #get authenticated claims
     if (response == False):
         logger.error('Unauthorized')
@@ -51,25 +51,48 @@ def lambda_handler(event, context):
         user_name = response["cognito:username"]
         tenant_id = response["custom:tenantId"]
         user_role = response["custom:userRole"]
-        
-    
+
+
     tmp = event['methodArn'].split(':')
     api_gateway_arn_tmp = tmp[5].split('/')
-    aws_account_id = tmp[4]    
-    
+    aws_account_id = tmp[4]
+
     policy = AuthPolicy(principal_id, aws_account_id)
     policy.restApiId = api_gateway_arn_tmp[0]
     policy.region = tmp[3]
     policy.stage = api_gateway_arn_tmp[1]
 
-   
-    policy.allowAllMethods()        
-    
+
+    policy.allowAllMethods()
+
     authResponse = policy.build()
- 
+
     #TODO : Add code for Fine-Grained-Access-Control
-    
-    
+    iam_policy = auth_manager.getPolicyForUser(user_role, utils.Service_Identifier.BUSINESS_SERVICES.value, tenant_id, region, aws_account_id)
+    logger.info(iam_policy)
+
+    role_arn = "arn:aws:iam::{}:role/authorizer-access-role".format(aws_account_id)
+
+    assumed_role = sts_client.assume_role(
+        RoleArn=role_arn,
+        RoleSessionName="tenant-aware-session",
+        Policy=iam_policy,
+    )
+    credentials = assumed_role["Credentials"]
+    #pass sts credentials to lambda
+    context = {
+        'accesskey': credentials['AccessKeyId'], # $context.authorizer.key -> value
+        'secretkey' : credentials['SecretAccessKey'],
+        'sessiontoken' : credentials["SessionToken"],
+        'userName': user_name,
+        'tenantId': tenant_id,
+        'userPoolId': userpool_id,
+        'userRole': user_role
+    }
+
+    authResponse['context'] = context
+
+
     return authResponse
 
 def validateJWT(token, app_client_id, keys):

@@ -19,14 +19,14 @@ table_name = os.environ['PRODUCT_TABLE_NAME']
 
 dynamodb = None
 
-suffix_start = 1 
+suffix_start = 1
 suffix_end = 10
 
-def get_product(event, key):  
-    table = __get_dynamodb_table(event, dynamodb)  
+def get_product(event, key):
+    table = __get_dynamodb_table(event, dynamodb)
     try:
         shardId = key.split(":")[0]
-        productId = key.split(":")[1] 
+        productId = key.split(":")[1]
         logger.log_with_tenant_context(event, shardId)
         logger.log_with_tenant_context(event, productId)
         response = table.get_item(Key={'shardId': shardId, 'productId': productId})
@@ -39,11 +39,11 @@ def get_product(event, key):
         logger.info("GetItem succeeded:"+ str(product))
         return product
 
-def delete_product(event, key):    
+def delete_product(event, key):
     table = __get_dynamodb_table(event, dynamodb)
     try:
         shardId = key.split(":")[0]
-        productId = key.split(":")[1] 
+        productId = key.split(":")[1]
         response = table.delete_item(Key={'shardId':shardId, 'productId': productId})
     except ClientError as e:
         logger.error(e.response['Error']['Message'])
@@ -54,19 +54,19 @@ def delete_product(event, key):
 
 
 def create_product(event, payload):
-    tenantId = event['requestContext']['authorizer']['tenantId']  
-    table = __get_dynamodb_table(event, dynamodb)  
-    
+    tenantId = event['requestContext']['authorizer']['tenantId']
+    table = __get_dynamodb_table(event, dynamodb)
+
     suffix = random.randrange(suffix_start, suffix_end)
     shardId = tenantId+"-"+str(suffix)
 
     product = Product(shardId, str(uuid.uuid4()), payload.sku,payload.name, payload.price, payload.category)
-    
+
     try:
         response = table.put_item(
             Item=
                 {
-                    'shardId': shardId,  
+                    'shardId': shardId,
                     'productId': product.productId,
                     'sku': product.sku,
                     'name': product.name,
@@ -81,11 +81,11 @@ def create_product(event, payload):
         logger.info("PutItem succeeded:")
         return product
 
-def update_product(event, payload, key):    
+def update_product(event, payload, key):
     table = __get_dynamodb_table(event, dynamodb)
     try:
         shardId = key.split(":")[0]
-        productId = key.split(":")[1] 
+        productId = key.split(":")[1]
         logger.log_with_tenant_context(event, shardId)
         logger.log_with_tenant_context(event, productId)
 
@@ -106,10 +106,10 @@ def update_product(event, payload, key):
         raise Exception('Error updating a product', e)
     else:
         logger.info("UpdateItem succeeded:")
-        return product        
+        return product
 
 def get_products(event, tenantId):
-    table = __get_dynamodb_table(event, dynamodb)    
+    table = __get_dynamodb_table(event, dynamodb)
     get_all_products_response =[]
     try:
         __query_all_partitions(tenantId,get_all_products_response, table)
@@ -121,36 +121,38 @@ def get_products(event, tenantId):
         return get_all_products_response
 
 def __query_all_partitions(tenantId,get_all_products_response, table):
-    threads = []    
-    
+    threads = []
+
     for suffix in range(suffix_start, suffix_end):
         partition_id = tenantId+'-'+str(suffix)
-        
+
         thread = threading.Thread(target=__get_tenant_data, args=[partition_id, get_all_products_response, table])
         threads.append(thread)
-        
+
     # Start threads
     for thread in threads:
         thread.start()
     # Ensure all threads are finished
     for thread in threads:
         thread.join()
-           
-def __get_tenant_data(partition_id, get_all_products_response, table):    
+
+def __get_tenant_data(partition_id, get_all_products_response, table):
     logger.info(partition_id)
-    response = table.query(KeyConditionExpression=Key('shardId').eq(partition_id))    
+    response = table.query(KeyConditionExpression=Key('shardId').eq(partition_id))
     if (len(response['Items']) > 0):
         for item in response['Items']:
             product = Product(item['shardId'], item['productId'], item['sku'], item['name'], item['price'], item['category'])
             get_all_products_response.append(product)
 
+
 def __get_dynamodb_table(event, dynamodb):
-    """ 
+    accesskey = event['requestContext']['authorizer']['accesskey']
+    secretkey = event['requestContext']['authorizer']['secretkey']
+    sessiontoken = event['requestContext']['authorizer']['sessiontoken']
+    dynamodb = boto3.resource('dynamodb',
+                aws_access_key_id=accesskey,
+                aws_secret_access_key=secretkey,
+                aws_session_token=sessiontoken
+                )
 
-    Args:
-        event ([type]): [description]
-
-    Returns:
-        [type]: [description]
-    """
-    #TODO: Implement this method
+    return dynamodb.Table(table_name)

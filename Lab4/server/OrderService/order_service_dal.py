@@ -19,15 +19,15 @@ table_name = os.environ['ORDER_TABLE_NAME']
 
 dynamodb = None
 
-suffix_start = 1 
+suffix_start = 1
 suffix_end = 10
- 
+
 def get_order(event, key):
     table = __get_dynamodb_table(event, dynamodb)
-    
+
     try:
         shardId = key.split(":")[0]
-        orderId = key.split(":")[1] 
+        orderId = key.split(":")[1]
         logger.log_with_tenant_context(event, shardId)
         logger.log_with_tenant_context(event, orderId)
         response = table.get_item(Key={'shardId': shardId, 'orderId': orderId})
@@ -42,10 +42,10 @@ def get_order(event, key):
 
 def delete_order(event, key):
     table = __get_dynamodb_table(event, dynamodb)
-    
+
     try:
         shardId = key.split(":")[0]
-        orderId = key.split(":")[1] 
+        orderId = key.split(":")[1]
         response = table.delete_item(Key={'shardId':shardId, 'orderId': orderId})
     except ClientError as e:
         logger.error(e.response['Error']['Message'])
@@ -60,13 +60,13 @@ def create_order(event, payload):
     table = __get_dynamodb_table(event, dynamodb)
     suffix = random.randrange(suffix_start, suffix_end)
     shardId = tenantId+"-"+str(suffix)
-    
+
     order = Order(shardId, str(uuid.uuid4()), payload.orderName, payload.orderProducts)
 
     try:
         response = table.put_item(Item={
         'shardId':shardId,
-        'orderId': order.orderId, 
+        'orderId': order.orderId,
         'orderName': order.orderName,
         'orderProducts': get_order_products_dict(order.orderProducts)
         })
@@ -79,10 +79,10 @@ def create_order(event, payload):
 
 def update_order(event, payload, key):
     table = __get_dynamodb_table(event, dynamodb)
-    
+
     try:
         shardId = key.split(":")[0]
-        orderId = key.split(":")[1] 
+        orderId = key.split(":")[1]
         logger.log_with_tenant_context(event, shardId)
         logger.log_with_tenant_context(event, orderId)
         order = Order(shardId, orderId,payload.orderName, payload.orderProducts)
@@ -109,52 +109,55 @@ def get_orders(event, tenantId):
         __query_all_partitions(tenantId,get_all_products_response, table)
     except ClientError as e:
         logger.error("Error getting all orders")
-        raise Exception('Error getting all orders', e) 
+        raise Exception('Error getting all orders', e)
     else:
         logger.info("Get orders succeeded")
         return get_all_products_response
 
 def __query_all_partitions(tenantId,get_all_products_response, table):
-    threads = []    
-    
+    threads = []
+
     for suffix in range(suffix_start, suffix_end):
         partition_id = tenantId+'-'+str(suffix)
-        
+
         thread = threading.Thread(target=__get_tenant_data, args=[partition_id, get_all_products_response, table])
         threads.append(thread)
-        
+
     # Start threads
     for thread in threads:
         thread.start()
     # Ensure all threads are finished
     for thread in threads:
         thread.join()
-           
-def __get_tenant_data(partition_id, get_all_products_response, table):    
+
+def __get_tenant_data(partition_id, get_all_products_response, table):
     logger.info(partition_id)
-    response = table.query(KeyConditionExpression=Key('shardId').eq(partition_id))    
+    response = table.query(KeyConditionExpression=Key('shardId').eq(partition_id))
     if (len(response['Items']) > 0):
         for item in response['Items']:
             order = Order(item['shardId'], item['orderId'], item['orderName'], item['orderProducts'])
             get_all_products_response.append(order)
 
+
 def __get_dynamodb_table(event, dynamodb):
-    """ 
+    accesskey = event['requestContext']['authorizer']['accesskey']
+    secretkey = event['requestContext']['authorizer']['secretkey']
+    sessiontoken = event['requestContext']['authorizer']['sessiontoken']
+    dynamodb = boto3.resource('dynamodb',
+                aws_access_key_id=accesskey,
+                aws_secret_access_key=secretkey,
+                aws_session_token=sessiontoken
+                )
 
-    Args:
-        event ([type]): [description]
+    return dynamodb.Table(table_name)
 
-    Returns:
-        [type]: [description]
-    """
-    #TODO: Implement this method
 
 def get_order_products_dict(orderProducts):
     orderProductList = []
     for i in range(len(orderProducts)):
         product = orderProducts[i]
         orderProductList.append(vars(product))
-    return orderProductList    
+    return orderProductList
 
-  
+
 
