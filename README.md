@@ -10,3 +10,5 @@ Follow this link for detailed instructions to run this workshop in your AWS Acco
 The documentation is made available under the Creative Commons Attribution-ShareAlike 4.0 International License. See the LICENSE file.
 
 The sample code within this documentation is made available under the MIT-0 license. See the LICENSE-SAMPLECODE file.
+
+chmod +x pre_requisites.sh test_pre_requisites.sh run_labs.sh
