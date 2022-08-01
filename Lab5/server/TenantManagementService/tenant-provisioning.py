@@ -21,12 +21,20 @@ stack_name = 'stack-{0}'
 @tracer.capture_lambda_handler
 def provision_tenant(event, context):
     tenant_details = json.loads(event['body'])
-    
-    try:          
-        
-        #TODO: Add missing code to kick off the pipeline
-        pass
-
+    try:
+        response_ddb = table_tenant_stack_mapping.put_item(
+            Item={
+                'tenantId': tenant_details['tenantId'],
+                'stackName': stack_name.format(tenant_details['tenantId']),
+                'applyLatestRelease': True,
+                'codeCommitId': ''
+            }
+        )
+        logger.info(response_ddb)
+        response_codepipeline = codepipeline.start_pipeline_execution(
+            name='serverless-saas-pipeline'
+        )
+        logger.info(response_ddb)
     except Exception as e:
         raise
     else:
@@ -36,16 +44,16 @@ def provision_tenant(event, context):
 #this method uses IAM Authorization and protected using a resource policy. This method is also invoked async
 def deprovision_tenant(event, context):
     logger.info("Request received to deprovision a tenant")
-    
+
     tenantid_to_deprovision = event['tenantId']
-    
-    try:          
+
+    try:
         response_ddb = table_tenant_stack_mapping.delete_item(
             Key={
-                    'tenantId': tenantid_to_deprovision                    
+                    'tenantId': tenantid_to_deprovision
                 }
-            )    
-        
+            )
+
         logger.info(response_ddb)
 
         response_cloudformation = cloudformation.delete_stack(
@@ -59,4 +67,4 @@ def deprovision_tenant(event, context):
     else:
         return utils.create_success_response("Tenant Deprovisioning Started")
 
- 
+

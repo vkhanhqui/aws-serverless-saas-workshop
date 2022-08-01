@@ -3,7 +3,7 @@
 
 version: 0.2
 phases:
-  install:    
+  install:
     commands:
       # Install packages or any pre-reqs in this phase.
       # Upgrading SAM CLI to 1.33.0 version
@@ -11,10 +11,10 @@ phases:
       - sam --version
       # Installing project dependencies
       - cd Lab5/server/ProductService
-      - python -m pip install -r requirements.txt 
+      - python -m pip install -r requirements.txt
       - cd ../OrderService
-      - python -m pip install -r requirements.txt 
-      
+      - python -m pip install -r requirements.txt
+
 
   pre_build:
     commands:

@@ -23,7 +23,7 @@ export class ServerlessSaaSStack extends cdk.Stack {
       encryption: s3.BucketEncryption.S3_MANAGED,
     });
 
-    //Since this lambda is invoking cloudformation which is inturn deploying AWS resources, we are giving overly permissive permissions to this lambda. 
+    //Since this lambda is invoking cloudformation which is inturn deploying AWS resources, we are giving overly permissive permissions to this lambda.
     //You can limit this based upon your use case and AWS Resources you need to deploy.
     const lambdaPolicy = new PolicyStatement()
         lambdaPolicy.addActions("*")
@@ -50,8 +50,8 @@ export class ServerlessSaaSStack extends cdk.Stack {
     // Import existing CodeCommit sam-app repository
     const codeRepo = codecommit.Repository.fromRepositoryName(
       this,
-      'AppRepository', 
-      'aws-serverless-saas-workshop' 
+      'AppRepository',
+      'aws-serverless-saas-workshop'
     );
 
     // Declare source code as an artifact
@@ -87,7 +87,7 @@ export class ServerlessSaaSStack extends cdk.Stack {
       }
     });
 
-    
+
 
     // Add the build stage to our pipeline
     pipeline.addStage({
@@ -121,6 +121,6 @@ export class ServerlessSaaSStack extends cdk.Stack {
           }
         }),
       ],
-    });    
+    });
   }
 }
